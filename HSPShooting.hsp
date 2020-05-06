@@ -1,5 +1,192 @@
-/*FUN AI用LTプログラム*/
-title "HSP3やろうぜ"
 
-*first
+;==============================
+;制作時間4時間
+;HSPの記法まるっきり忘れてた
+;
+;
+;遊び方
+;キーボードの「←」「→」でバーを動かしてボールをブロックに当てよう。何？ボールが変な挙動をする？諦めろ、それは仕様だ。
+;ボールを跳ね返せずに地面に落ちたらライフが減る。ライフが0になるかブロック数が0になれば終了だ。
+;
+;==============================
+
+title "HSPでブロック崩し"
+
+;==============================
+; 定数定義
+;==============================
+#define WINDOW_X 300
+#define WINDOW_Y 400
+#define BAR_X_SIZE 60
+#define BAR_Y_SIZE 10
+#define BALL_SIZE 20
+#define BLOCK_NUM_X 5
+#define BLOCK_NUM_Y 5
+#define BLOCK_WIDTH 53
+#define BLOCK_HEIGHT 15
+#define BLOCK_PADDING 5
+
+
+;==============================
+; 変数定義
+;==============================
+barX = 120
+barY = 360
+barSpeed = 10
+ballX = 140
+ballY = 341
+ballSpeedX = 7
+ballSpeedY = -7
+blockX = 0
+blockY = 0
+sumBlock = BLOCK_NUM_X * BLOCK_NUM_Y
+pLife = 3
+; 配列変数
+dim bFlag, BLOCK_NUM_X, BLOCK_NUM_Y
+repeat BLOCK_NUM_Y: i=cnt
+  repeat BLOCK_NUM_X: j=cnt
+    bFlag(i,j) = 1
+  loop
+loop
+
+
+;スクリーンサイズ
+screen 0,WINDOW_X,WINDOW_Y
+
+;初期化関数
+*initialize
+	barX = 120
+	barY = 360
+	ballX = 140
+	ballY = 341
+	ballSpeedX = 7
+	ballSpeedY = -7
+	repeat BLOCK_NUM_Y: i = cnt
+	  repeat BLOCK_NUM_X: j = cnt
+	  bFlag(i,j) = 1
+	  loop
+	loop
+	sumBlock = BLOCK_NUM_X * BLOCK_NUM_Y
+	pLife = 3
+	goto *main
 	
+;メイン処理
+*main
+	repeat
+	 cls
+	 gosub *status
+	 gosub *player
+	 gosub *ballMover
+	 gosub *unifChecker
+	 gosub *blockDisplay
+	 gosub *resultGame
+	 await 50
+	loop
+	stop
+
+;ステータス表示用サブ処理
+*status
+	pos 5, ginfo_winy - 18
+	mes "LIFE:" + pLife
+	pos ginfo_winx - 75, ginfo_winy - 18
+	mes "残り:" + sumBlock + "個"
+return
+
+;バー操作用サブ処理
+*player
+	boxf barX, barY, barX + BAR_X_SIZE, barY + BAR_Y_SIZE
+	stick key, 15
+	if key = 128: end
+	if key&1: barX = barX - barSpeed
+	if key&4: barX = barX + barSpeed
+	if barX <= 0{
+		barX = 0
+	}
+	if barX >= ginfo_winx - BAR_X_SIZE{
+		barX = ginfo_winx - BAR_X_SIZE
+	}
+return
+
+;ボールが動く用サブ処理
+*ballMover
+	color 0, 0, 0
+	circle ballX, ballY, ballX+BALL_SIZE, ballY+BALL_SIZE
+	ballX += ballSpeedX
+	ballY += ballSpeedY
+	;x軸の反射処理
+	if ballX <= 0 | ballX >= ginfo_winx - BALL_SIZE{
+		ballSpeedX *= -1
+	}
+	;y軸の反射処理
+	if ballY <= 0 | ballY >= ginfo_winy - BALL_SIZE{
+		ballSpeedY *= -1
+	}
+return
+
+;バーとボールの当たり判定用サブ処理
+*hitBarChecker
+	if (barX + BAR_X_SIZE) > ballX & (ballX + BALL_SIZE) > barX & (barY + BAR_Y_SIZE) > ballY & (ballY + BALL_SIZE) > barY{
+		ballSpeedY *= -1
+	}
+return
+
+;床との当たり判定用サブ処理
+*hitDamageChecker
+	if ballY >= ginfo_winy - BALL_SIZE: pLife--
+return
+
+;当たり判定統合用サブ処理
+*unifChecker
+	gosub *hitBarChecker
+	gosub *hitDamageChecker
+return
+
+
+;ブロックの当たり判定用サブ処理
+*hitBlockChecker
+	if (blockX + BLOCK_WIDTH) > ballX & blockX < (ballX + BALL_SIZE) & (blockY + BLOCK_HEIGHT) > ballY & blockY < (ballY + BALL_SIZE){
+		bFlag(i,j) = 0
+		ballSpeedY *= -1
+		sumBlock--
+	}
+return
+
+;ブロック表示用サブ処理
+*blockDisplay
+	color 0, 255, 0
+	blockY = BLOCK_PADDING
+	repeat BLOCK_NUM_Y: i = cnt
+	  blockX = BLOCK_PADDING
+	  repeat BLOCK_NUM_X: j = cnt
+        if bFlag(i,j) == 1 : gosub *hitBlockChecker
+	    
+	    if bFlag(i,j) == 1 : boxf blockX, blockY, blockX + BLOCK_WIDTH, blockY + BLOCK_HEIGHT
+	    blockX += BLOCK_WIDTH + BLOCK_PADDING
+	  loop
+	  blockY += BLOCK_HEIGHT + BLOCK_PADDING
+	loop
+return
+
+;リザルト用サブ処理
+*resultGame
+	if sumBlock == 0 {
+		color 0, 0, 255
+		pos 60, 150
+		font "MS ゴシック", 30
+		mes "GAME CLEAR!!"
+		pos 60, 200
+		objsize 100,40
+		button "もう一度", *initialize
+		stop
+	}
+	if pLife == 0{
+		color 255, 0, 0
+		pos 60, 150
+		font "MS ゴシック", 30
+		mes "GAME OVER!!"
+		pos 60, 200
+		objsize 100,40
+		button "もう一度", *initialize
+		stop
+	}
+return
